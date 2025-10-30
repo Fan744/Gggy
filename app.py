@@ -12,7 +12,7 @@ from telegram.ext import (
 BOT_TOKEN = "8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE"
 
 # ✅ TELEGRAM CHANNEL USERNAME (without @)
-CHANNEL_USERNAME = "team_black_hat_offical"
+CHANNEL_USERNAME = "ultroid_officiall"
 
 # ✅ Enable logs
 logging.basicConfig(level=logging.INFO)
