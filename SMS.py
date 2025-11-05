@@ -8,7 +8,7 @@ BOT_TOKEN = "8313201920:AAH1PfXk6b6sgBPNCT_H5AEMAhZETItO5gg"  # ← यहाँ
 
 # Numverify API (फ्री) — साइनअप: https://numverify.com
 NUMVERIFY_API = "http://apilayer.net/api/validate"
-ACCESS_KEY = "YOUR_NUMVERIFY_KEY"  # फ्री में मिलेगा
+ACCESS_KEY = "60760dddefbb60b8b584d46910be7b7d"  # फ्री में मिलेगा
 
 logging.basicConfig(level=logging.INFO)
 
